@@ -1,0 +1,4 @@
+/home/lbh/git/LeanStoreOOPW/build/share_libs/yyjson/Libyyjson/lib/libyyjson.a
+/home/lbh/git/LeanStoreOOPW/build/share_libs/yyjson/Libyyjson/lib/cmake/yyjson/yyjson-config.cmake
+/home/lbh/git/LeanStoreOOPW/build/share_libs/yyjson/Libyyjson/lib/cmake/yyjson/yyjson-config-release.cmake
+/home/lbh/git/LeanStoreOOPW/build/share_libs/yyjson/Libyyjson/include/yyjson.h

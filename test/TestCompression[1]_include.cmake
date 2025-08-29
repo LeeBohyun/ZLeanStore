@@ -1,0 +1,5 @@
+if(EXISTS "/home/lbh/leanstore-vmcache-main/test/TestCompression[1]_tests.cmake")
+  include("/home/lbh/leanstore-vmcache-main/test/TestCompression[1]_tests.cmake")
+else()
+  add_test(TestCompression_NOT_BUILT TestCompression_NOT_BUILT)
+endif()

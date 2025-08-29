@@ -1,0 +1,5 @@
+if(EXISTS "/home/lbh/leanstore-vmcache-main/test/TestPageGuard[1]_tests.cmake")
+  include("/home/lbh/leanstore-vmcache-main/test/TestPageGuard[1]_tests.cmake")
+else()
+  add_test(TestPageGuard_NOT_BUILT TestPageGuard_NOT_BUILT)
+endif()

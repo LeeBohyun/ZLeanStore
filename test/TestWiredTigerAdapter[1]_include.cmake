@@ -1,0 +1,5 @@
+if(EXISTS "/home/lbh/leanstore-vmcache-main/test/TestWiredTigerAdapter[1]_tests.cmake")
+  include("/home/lbh/leanstore-vmcache-main/test/TestWiredTigerAdapter[1]_tests.cmake")
+else()
+  add_test(TestWiredTigerAdapter_NOT_BUILT TestWiredTigerAdapter_NOT_BUILT)
+endif()

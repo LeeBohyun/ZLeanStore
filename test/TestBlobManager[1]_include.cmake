@@ -1,0 +1,5 @@
+if(EXISTS "/home/lbh/leanstore-vmcache-main/test/TestBlobManager[1]_tests.cmake")
+  include("/home/lbh/leanstore-vmcache-main/test/TestBlobManager[1]_tests.cmake")
+else()
+  add_test(TestBlobManager_NOT_BUILT TestBlobManager_NOT_BUILT)
+endif()
