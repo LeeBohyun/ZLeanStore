@@ -1,2 +1,0 @@
-/usr/bin/ar qc libfsst.a CMakeFiles/fsst.dir/libfsst.cpp.o CMakeFiles/fsst.dir/fsst_avx512.cpp.o
-/usr/bin/ranlib libfsst.a
