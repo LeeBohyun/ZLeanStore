@@ -32,7 +32,7 @@ Install dependencies:
 - For example, ``use_out_of_place_write=false``
 
 ## How to run TPC-C
-- relevant folder and files: ``/LeanStoreOOPW/benchmark/src/include/benchmark/tpcc`` ``/LeanStoreOOPW/benchmark/main/leanstore_tpcc.cc``
+- relevant folder and files: ``/ZLeanStore/benchmark/src/include/benchmark/tpcc`` ``/ZLeanStore/benchmark/main/leanstore_tpcc.cc``
 - steady tpcc option: ``--tpcc_batch_delete_window=2100`` 
 - growing vanilla tpcc:  ``--tpcc_batch_delete_window=0`` 
 
@@ -66,7 +66,7 @@ cd build/benchmark
 
 LeanStore provides a *simulator mode* that mimics SSD behavior, allowing users to evaluate write amplification and space management strategies **without requiring a real block device**. This mode is ideal for research and benchmarking purposes where hardware-level changes are emulated in software.
 
-### Example: Running a Skewed Workload (YCSB-A, zipf 0.6) on SSD simulator
+### Example: Running a Skewed Workload (YCSB-A, zipf 0.6) on SSD simulator, but it still issues IO request, it is just that you can assume that your SSD is smaller for example
 
 ```bash
 ./LeanStore_Flashbench \
