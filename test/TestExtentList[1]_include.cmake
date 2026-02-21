@@ -1,0 +1,5 @@
+if(EXISTS "/home/lbh/leanstore-vmcache-main/test/TestExtentList[1]_tests.cmake")
+  include("/home/lbh/leanstore-vmcache-main/test/TestExtentList[1]_tests.cmake")
+else()
+  add_test(TestExtentList_NOT_BUILT TestExtentList_NOT_BUILT)
+endif()

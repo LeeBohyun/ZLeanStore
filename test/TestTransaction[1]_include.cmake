@@ -1,0 +1,5 @@
+if(EXISTS "/home/lbh/leanstore-vmcache-main/test/TestTransaction[1]_tests.cmake")
+  include("/home/lbh/leanstore-vmcache-main/test/TestTransaction[1]_tests.cmake")
+else()
+  add_test(TestTransaction_NOT_BUILT TestTransaction_NOT_BUILT)
+endif()

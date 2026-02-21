@@ -1,0 +1,5 @@
+if(EXISTS "/home/lbh/leanstore-vmcache-main/test/TestHybridGuard[1]_tests.cmake")
+  include("/home/lbh/leanstore-vmcache-main/test/TestHybridGuard[1]_tests.cmake")
+else()
+  add_test(TestHybridGuard_NOT_BUILT TestHybridGuard_NOT_BUILT)
+endif()

@@ -1,0 +1,2 @@
+/usr/bin/ar qc libcroaring.a CMakeFiles/croaring.dir/roaring.cc.o
+/usr/bin/ranlib libcroaring.a

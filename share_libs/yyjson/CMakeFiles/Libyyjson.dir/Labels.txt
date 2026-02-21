@@ -1,0 +1,13 @@
+# Target labels
+ Libyyjson
+# Source files and their labels
+/home/lbh/leanstore-vmcache-main/share_libs/yyjson/CMakeFiles/Libyyjson
+/home/lbh/leanstore-vmcache-main/share_libs/yyjson/CMakeFiles/Libyyjson.rule
+/home/lbh/leanstore-vmcache-main/share_libs/yyjson/CMakeFiles/Libyyjson-complete.rule
+/home/lbh/leanstore-vmcache-main/share_libs/yyjson/Libyyjson/src/Libyyjson-stamp/Libyyjson-build.rule
+/home/lbh/leanstore-vmcache-main/share_libs/yyjson/Libyyjson/src/Libyyjson-stamp/Libyyjson-configure.rule
+/home/lbh/leanstore-vmcache-main/share_libs/yyjson/Libyyjson/src/Libyyjson-stamp/Libyyjson-download.rule
+/home/lbh/leanstore-vmcache-main/share_libs/yyjson/Libyyjson/src/Libyyjson-stamp/Libyyjson-install.rule
+/home/lbh/leanstore-vmcache-main/share_libs/yyjson/Libyyjson/src/Libyyjson-stamp/Libyyjson-mkdir.rule
+/home/lbh/leanstore-vmcache-main/share_libs/yyjson/Libyyjson/src/Libyyjson-stamp/Libyyjson-patch.rule
+/home/lbh/leanstore-vmcache-main/share_libs/yyjson/Libyyjson/src/Libyyjson-stamp/Libyyjson-update.rule

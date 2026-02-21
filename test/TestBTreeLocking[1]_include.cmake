@@ -1,0 +1,5 @@
+if(EXISTS "/home/lbh/leanstore-vmcache-main/test/TestBTreeLocking[1]_tests.cmake")
+  include("/home/lbh/leanstore-vmcache-main/test/TestBTreeLocking[1]_tests.cmake")
+else()
+  add_test(TestBTreeLocking_NOT_BUILT TestBTreeLocking_NOT_BUILT)
+endif()

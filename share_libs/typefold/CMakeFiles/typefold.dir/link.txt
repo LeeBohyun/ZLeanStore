@@ -1,0 +1,2 @@
+/usr/bin/ar qc libtypefold.a CMakeFiles/typefold.dir/typefold.cc.o
+/usr/bin/ranlib libtypefold.a

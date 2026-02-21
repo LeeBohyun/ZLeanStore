@@ -1,0 +1,43 @@
+{
+	"sources" : 
+	[
+		{
+			"file" : "/home/lbh/leanstore-vmcache-main/share_libs/yyjson/CMakeFiles/Libyyjson"
+		},
+		{
+			"file" : "/home/lbh/leanstore-vmcache-main/share_libs/yyjson/CMakeFiles/Libyyjson.rule"
+		},
+		{
+			"file" : "/home/lbh/leanstore-vmcache-main/share_libs/yyjson/CMakeFiles/Libyyjson-complete.rule"
+		},
+		{
+			"file" : "/home/lbh/leanstore-vmcache-main/share_libs/yyjson/Libyyjson/src/Libyyjson-stamp/Libyyjson-build.rule"
+		},
+		{
+			"file" : "/home/lbh/leanstore-vmcache-main/share_libs/yyjson/Libyyjson/src/Libyyjson-stamp/Libyyjson-configure.rule"
+		},
+		{
+			"file" : "/home/lbh/leanstore-vmcache-main/share_libs/yyjson/Libyyjson/src/Libyyjson-stamp/Libyyjson-download.rule"
+		},
+		{
+			"file" : "/home/lbh/leanstore-vmcache-main/share_libs/yyjson/Libyyjson/src/Libyyjson-stamp/Libyyjson-install.rule"
+		},
+		{
+			"file" : "/home/lbh/leanstore-vmcache-main/share_libs/yyjson/Libyyjson/src/Libyyjson-stamp/Libyyjson-mkdir.rule"
+		},
+		{
+			"file" : "/home/lbh/leanstore-vmcache-main/share_libs/yyjson/Libyyjson/src/Libyyjson-stamp/Libyyjson-patch.rule"
+		},
+		{
+			"file" : "/home/lbh/leanstore-vmcache-main/share_libs/yyjson/Libyyjson/src/Libyyjson-stamp/Libyyjson-update.rule"
+		}
+	],
+	"target" : 
+	{
+		"labels" : 
+		[
+			"Libyyjson"
+		],
+		"name" : "Libyyjson"
+	}
+}

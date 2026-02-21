@@ -1,0 +1,133 @@
+# ---------------------------------------------------------------------------
+# Benchmark config templates
+# ---------------------------------------------------------------------------
+set(WIKI_WORKLOAD_CSV ${CMAKE_CURRENT_SOURCE_DIR}/src/wikipedia/summary.csv)
+set(WIKI_ARTICLES_FILE ${CMAKE_CURRENT_SOURCE_DIR}/src/wikipedia/articles)
+set(GIT_WORKLOAD_CSV ${CMAKE_CURRENT_SOURCE_DIR}/src/gitclone/traces/main.csv)
+configure_file(${CMAKE_CURRENT_SOURCE_DIR}/src/wikipedia/config.cc.in
+               ${CMAKE_CURRENT_SOURCE_DIR}/src/wikipedia/config.cc)
+configure_file(${CMAKE_CURRENT_SOURCE_DIR}/src/gitclone/config.cc.in
+               ${CMAKE_CURRENT_SOURCE_DIR}/src/gitclone/config.cc)
+
+# ---------------------------------------------------------------------------
+# Benchmark utilities
+# ---------------------------------------------------------------------------
+file(GLOB_RECURSE BENCHMARK_LIB_FILES src/**/**.cc)
+add_library(leanstore_bm STATIC ${BENCHMARK_LIB_FILES})
+target_link_libraries(leanstore_bm PUBLIC leanstore ${THIRD_PARTY_DEPENDENCIES})
+target_include_directories(leanstore_bm PUBLIC
+    ${SRC_INCLUDE_DIR}
+    ${THIRD_PARTY_INCLUDE_DIR}
+)
+
+# ---------------------------------------------------------------------------
+# Add benchmark helper
+# ---------------------------------------------------------------------------
+set(BM_REQUIRED_LIBS leanstore leanstore_bm)
+set(BM_REQUIRED_HEADERS "")
+function(ADD_BENCHMARK BENCHMARK_NAME)
+  add_executable(${ARGV})
+  target_link_libraries(${BENCHMARK_NAME} PUBLIC ${BM_REQUIRED_LIBS})
+  target_include_directories(${BENCHMARK_NAME} PUBLIC ${BM_REQUIRED_HEADERS})
+endfunction()
+
+# ---------------------------------------------------------------------------
+# WiredTiger (local install in ~/wt-install)
+# ---------------------------------------------------------------------------
+set(WIREDTIGER_ROOT "$ENV{HOME}/wt-install")
+
+set(WIREDTIGER_INCLUDE_DIR "${WIREDTIGER_ROOT}/include")
+set(WIREDTIGER_LIBRARY_DIR "${WIREDTIGER_ROOT}/lib")
+set(WIREDTIGER_LIB "wiredtiger")
+
+# ---------------------------------------------------------------------------
+# RocksDB (example local install in ~/rocksdb-install)
+# ---------------------------------------------------------------------------
+# Adjust ROCKSDB_ROOT if you installed it elsewhere
+set(ROCKSDB_ROOT "$ENV{HOME}/rocksdb-install")
+
+set(ROCKSDB_INCLUDE_DIR "${ROCKSDB_ROOT}/include")
+set(ROCKSDB_LIBRARY_DIR "${ROCKSDB_ROOT}/lib")
+set(ROCKSDB_LIB "rocksdb")
+
+# ---------------------------------------------------------------------------
+# All benchmarks
+# ---------------------------------------------------------------------------
+add_benchmark(LeanStore_TPCC main/leanstore_tpcc.cc)
+add_benchmark(LeanStore_YCSB main/ycsb/leanstore_ycsb.cc)
+add_benchmark(LeanStore_FB_WebServer main/leanstore_webserver.cc)
+add_benchmark(LeanStore_Wiki main/wikipedia/leanstore_wikipedia.cc)
+add_benchmark(LeanStore_Gitclone main/gitclone/leanstore_gitclone.cc)
+add_benchmark(LeanStore_IndexWiki main/misc/leanstore_wiki_index.cc)
+add_benchmark(LeanStore_Aging main/misc/leanstore_aging.cc)
+
+add_benchmark(Filesystem_YCSB main/ycsb/filesystem_ycsb.cc)
+add_benchmark(Filesystem_Wiki main/wikipedia/filesystem_wikipedia.cc)
+add_benchmark(Filesystem_Gitclone main/gitclone/filesystem_gitclone.cc)
+add_benchmark(Filesystem_Aging main/misc/filesystem_aging.cc)
+
+add_benchmark(SQLite_YCSB main/ycsb/sqlite3_ycsb.cc)
+add_benchmark(Postgres_YCSB main/ycsb/postgres_ycsb.cc)
+add_benchmark(MySQL_YCSB main/ycsb/mysql_ycsb.cc)
+
+add_benchmark(RocksDB_YCSB main/ycsb/rocksdb_ycsb.cc)
+add_benchmark(WiredTiger_YCSB main/ycsb/wiredtiger_ycsb.cc)
+
+# Link WiredTiger_YCSB against our custom WiredTiger build
+target_include_directories(WiredTiger_YCSB PUBLIC
+    ${WIREDTIGER_INCLUDE_DIR}
+)
+
+target_link_directories(WiredTiger_YCSB PUBLIC
+    ${WIREDTIGER_LIBRARY_DIR}
+)
+
+target_link_libraries(WiredTiger_YCSB PUBLIC
+    ${WIREDTIGER_LIB}
+)
+
+# Link RocksDB_YCSB against our RocksDB build
+target_include_directories(RocksDB_YCSB PUBLIC
+    ${ROCKSDB_INCLUDE_DIR}
+)
+
+target_link_directories(RocksDB_YCSB PUBLIC
+    ${ROCKSDB_LIBRARY_DIR}
+)
+
+target_link_libraries(RocksDB_YCSB PUBLIC
+    ${ROCKSDB_LIB}
+)
+
+# ---------------------------------------------------------------------------
+# Micro benchmarks
+# ---------------------------------------------------------------------------
+add_benchmark(MicroSHA2 micro/sha2.cc)
+add_benchmark(MicroCompression micro/compress.cc)
+add_benchmark(MicroFreePages micro/free_pages.cc)
+add_benchmark(MicroQueue micro/queue.cc)
+add_benchmark(MicroBitmap micro/bitmap.cc)
+add_benchmark(MicroSearch micro/search.cc)
+
+add_benchmark(LeanStore_Email main/email/leanstore_email.cc)
+add_benchmark(LeanStore_URL main/url/leanstore_url.cc)
+add_benchmark(LeanStore_WikiTitle main/wikititle/leanstore_wikititle.cc)
+add_benchmark(LeanStore_Flashbench main/flashbench/leanstore_flashbench.cc)
+
+# ---------------------------------------------------------------------------
+# Tests for custom prototypes
+# ---------------------------------------------------------------------------
+if(ENABLE_TESTING)
+  set(PROTOTYPE_TEST_REQUIRED_LIBS gtest ${THIRD_PARTY_DEPENDENCIES})
+  set(PROTOTYPE_TEST_REQUIRED_HEADERS
+      ${GTEST_INCLUDE_DIR}
+      ${CMAKE_CURRENT_SOURCE_DIR}/micro
+  )
+  function(PROTOTYPE_ADD_TEST TEST_NAME)
+    add_executable(${ARGV})
+    target_link_libraries(${TEST_NAME} PUBLIC ${PROTOTYPE_TEST_REQUIRED_LIBS})
+    target_include_directories(${TEST_NAME} PUBLIC ${PROTOTYPE_TEST_REQUIRED_HEADERS})
+  endfunction()
+
+  prototype_add_test(TestFreePagePrototype micro/prototype/free_page/test.cc)
+endif()
