@@ -6,7 +6,7 @@ set -euo pipefail
 ########################################
 usage() {
   cat <<EOF
-Usage: $0 -c CURRENT_DIR -b BUILD_DIR -t TPCC_DIR -r RESULT_DIR -s SRC_DIR -d DEVICE [-p SUDO_PWD]
+Usage: $0 -c CURRENT_DIR -b BUILD_DIR -t YCSB_DIR -r RESULT_DIR -s SRC_DIR -d DEVICE [-p SUDO_PWD]
 
   -c  Current scripts dir (e.g., /home/smrc/scripts)
   -b  Build dir (e.g., /home/smrc/ZLeanStore/build)
@@ -29,7 +29,7 @@ EOF
 
 CURRENT_DIR=""
 BUILD_DIR=""
-TPCC_DIR=""
+YCSB_DIR=""
 RESULT_DIR=""
 SRC_DIR=""
 DEVICE=""
@@ -39,7 +39,7 @@ while getopts "c:b:t:r:s:d:p:h" opt; do
   case "$opt" in
     c) CURRENT_DIR=$OPTARG ;;
     b) BUILD_DIR=$OPTARG ;;
-    t) TPCC_DIR=$OPTARG ;;
+    t) YCSB_DIR=$OPTARG ;;
     r) RESULT_DIR=$OPTARG ;;
     s) SRC_DIR=$OPTARG ;;
     d) DEVICE=$OPTARG ;;
@@ -50,7 +50,7 @@ while getopts "c:b:t:r:s:d:p:h" opt; do
 done
 
 # Basic validation
-[[ -z "$CURRENT_DIR" || -z "$BUILD_DIR" || -z "$TPCC_DIR" || -z "$RESULT_DIR" || -z "$SRC_DIR" || -z "$DEVICE" ]] && usage
+[[ -z "$CURRENT_DIR" || -z "$BUILD_DIR" || -z "$YCSB_DIR" || -z "$RESULT_DIR" || -z "$SRC_DIR" || -z "$DEVICE" ]] && usage
 
 if [[ -z "$PWD_SUDO" ]]; then
   read -s -p "Enter sudo password: " PWD_SUDO
@@ -176,7 +176,7 @@ for z in "${skew[@]}"; do
       WAF_PID=$!
 
       # Run workload
-      cd "$TPCC_DIR"
+      cd "$YCSB_DIR"
       echo "$PWD_SUDO" | sudo -S ./LeanStore_YCSB \
         --SSD_OP=0.06 \
         --max_ssd_capacity_gb="$devicesz" \
