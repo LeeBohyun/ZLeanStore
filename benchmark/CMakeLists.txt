@@ -1,4 +1,11 @@
 # ---------------------------------------------------------------------------
+# Optional components
+# ---------------------------------------------------------------------------
+option(ENABLE_ROCKSDB
+  "Build RocksDB benchmarks (requires a RocksDB install, e.g. ~/rocksdb-install)"
+  OFF)
+
+# ---------------------------------------------------------------------------
 # Benchmark config templates
 # ---------------------------------------------------------------------------
 set(WIKI_WORKLOAD_CSV ${CMAKE_CURRENT_SOURCE_DIR}/src/wikipedia/summary.csv)
@@ -13,6 +20,9 @@ configure_file(${CMAKE_CURRENT_SOURCE_DIR}/src/gitclone/config.cc.in
 # Benchmark utilities
 # ---------------------------------------------------------------------------
 file(GLOB_RECURSE BENCHMARK_LIB_FILES src/**/**.cc)
+if(NOT ENABLE_ROCKSDB)
+  list(FILTER BENCHMARK_LIB_FILES EXCLUDE REGEX ".*/rocksdb_adapter\\.cc$")
+endif()
 add_library(leanstore_bm STATIC ${BENCHMARK_LIB_FILES})
 target_link_libraries(leanstore_bm PUBLIC leanstore ${THIRD_PARTY_DEPENDENCIES})
 target_include_directories(leanstore_bm PUBLIC
@@ -43,12 +53,14 @@ set(WIREDTIGER_LIB "wiredtiger")
 # ---------------------------------------------------------------------------
 # RocksDB (example local install in ~/rocksdb-install)
 # ---------------------------------------------------------------------------
-# Adjust ROCKSDB_ROOT if you installed it elsewhere
-set(ROCKSDB_ROOT "$ENV{HOME}/rocksdb-install")
+if(ENABLE_ROCKSDB)
+  # Adjust ROCKSDB_ROOT if you installed it elsewhere
+  set(ROCKSDB_ROOT "$ENV{HOME}/rocksdb-install")
 
-set(ROCKSDB_INCLUDE_DIR "${ROCKSDB_ROOT}/include")
-set(ROCKSDB_LIBRARY_DIR "${ROCKSDB_ROOT}/lib")
-set(ROCKSDB_LIB "rocksdb")
+  set(ROCKSDB_INCLUDE_DIR "${ROCKSDB_ROOT}/include")
+  set(ROCKSDB_LIBRARY_DIR "${ROCKSDB_ROOT}/lib")
+  set(ROCKSDB_LIB "rocksdb")
+endif()
 
 # ---------------------------------------------------------------------------
 # All benchmarks
@@ -70,7 +82,9 @@ add_benchmark(SQLite_YCSB main/ycsb/sqlite3_ycsb.cc)
 add_benchmark(Postgres_YCSB main/ycsb/postgres_ycsb.cc)
 add_benchmark(MySQL_YCSB main/ycsb/mysql_ycsb.cc)
 
-add_benchmark(RocksDB_YCSB main/ycsb/rocksdb_ycsb.cc)
+if(ENABLE_ROCKSDB)
+  add_benchmark(RocksDB_YCSB main/ycsb/rocksdb_ycsb.cc)
+endif()
 add_benchmark(WiredTiger_YCSB main/ycsb/wiredtiger_ycsb.cc)
 
 # Link WiredTiger_YCSB against our custom WiredTiger build
@@ -87,17 +101,19 @@ target_link_libraries(WiredTiger_YCSB PUBLIC
 )
 
 # Link RocksDB_YCSB against our RocksDB build
-target_include_directories(RocksDB_YCSB PUBLIC
-    ${ROCKSDB_INCLUDE_DIR}
-)
+if(ENABLE_ROCKSDB)
+  target_include_directories(RocksDB_YCSB PUBLIC
+      ${ROCKSDB_INCLUDE_DIR}
+  )
 
-target_link_directories(RocksDB_YCSB PUBLIC
-    ${ROCKSDB_LIBRARY_DIR}
-)
+  target_link_directories(RocksDB_YCSB PUBLIC
+      ${ROCKSDB_LIBRARY_DIR}
+  )
 
-target_link_libraries(RocksDB_YCSB PUBLIC
-    ${ROCKSDB_LIB}
-)
+  target_link_libraries(RocksDB_YCSB PUBLIC
+      ${ROCKSDB_LIB}
+  )
+endif()
 
 # ---------------------------------------------------------------------------
 # Micro benchmarks
