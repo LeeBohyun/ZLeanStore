@@ -12,19 +12,62 @@
 #include "storage/space/sim/SSD.hpp"
 #include "storage/space/sim/TwoR.hpp"
 #include <algorithm>
+#include <cerrno>
 #include <cstdint>
 #include <cstring>
+#include <fcntl.h>
 #include <iostream>
 #include <liburing.h>
 #include <linux/types.h>
 #include <stdlib.h>
 #include <sys/queue.h>
+#include <sys/stat.h>
 #include <unistd.h>
 
 namespace leanstore::storage::space {
 
+namespace {
+
+// Open a storage path with O_RDWR | O_DIRECT. Block devices are opened
+// as-is. Non-device paths that don't exist are created as regular files
+// and pre-sized to `required_size` via ftruncate so subsequent O_DIRECT
+// writes within capacity don't hit EOF extension. Existing regular files
+// smaller than `required_size` are extended.
+//
+// Paths under /dev/ are NOT auto-created — a typo'd device name should
+// still fail loudly instead of silently leaving a sparse file there.
+int OpenStorageFile(const std::string &path, u64 required_size) {
+  struct stat st;
+  const bool exists = (stat(path.c_str(), &st) == 0);
+
+  int flags = O_RDWR | O_DIRECT;
+  if (!exists) {
+    static const std::string kDevPrefix = "/dev/";
+    if (path.compare(0, kDevPrefix.size(), kDevPrefix) != 0) {
+      flags |= O_CREAT;
+    }
+  }
+  int fd = open(path.c_str(), flags, S_IRUSR | S_IWUSR);
+  if (fd < 0) {
+    return -1;
+  }
+  if (fstat(fd, &st) == 0 && S_ISREG(st.st_mode) &&
+      static_cast<u64>(st.st_size) < required_size) {
+    if (ftruncate(fd, static_cast<off_t>(required_size)) != 0) {
+      LOG_ERROR("ftruncate(%s, %lu) failed: %s", path.c_str(),
+                static_cast<unsigned long>(required_size), strerror(errno));
+      close(fd);
+      return -1;
+    }
+  }
+  return fd;
+}
+
+} // namespace
+
 NVMeDevice::NVMeDevice() {
-  blockfd_ = open(FLAGS_db_path.c_str(), O_RDWR | O_DIRECT, S_IRWXU);
+  const u64 required_db_size = FLAGS_max_ssd_capacity_gb * GB;
+  blockfd_ = OpenStorageFile(FLAGS_db_path, required_db_size);
   if (blockfd_ == -1 && !FLAGS_simulator_mode) {
     LOG_ERROR("Cannot open BLOCK data device %d", blockfd_);
     exit(EXIT_FAILURE);
@@ -34,7 +77,8 @@ NVMeDevice::NVMeDevice() {
     walfd_ = blockfd_;
   } else {
     if (!FLAGS_wal_path.empty()) {
-      walfd_ = open(FLAGS_wal_path.c_str(), O_RDWR | O_DIRECT, S_IRWXU);
+      const u64 required_wal_size = FLAGS_max_wal_capacity_gb * GB;
+      walfd_ = OpenStorageFile(FLAGS_wal_path, required_wal_size);
       if (walfd_ == -1) {
         LOG_ERROR("Cannot open BLOCK WAL device %d", walfd_);
         exit(EXIT_FAILURE);
