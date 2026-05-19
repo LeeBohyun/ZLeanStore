@@ -61,7 +61,7 @@ fi
 # Static / experiment parameters
 ########################################
 
-exec_time=24000
+exec_time=300
 thread_cnt=32
 ver=3
 skew=(0.8)

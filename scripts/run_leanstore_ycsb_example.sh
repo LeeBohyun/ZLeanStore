@@ -57,7 +57,7 @@ fi
 # Static / experiment parameters
 ########################################
 
-exec_time=7200
+exec_time=300
 thread_cnt=64
 ver=0
 
