@@ -5,8 +5,8 @@ ZLeanStore is an out-of-place write version of [LeanStore](https://db.in.tum.de/
 
 > **How to Write to SSDs**
 > Bohyun Lee, Tobias Ziegler, and Viktor Leis.
-> *Under submission* (not yet published).
-> https://github.com/LeeBohyun/ZLeanStore
+> *Proceedings of the VLDB Endowment (PVLDB)*, Vol. 19, 2026, p. 1469.
+> [PDF](https://www.vldb.org/pvldb/vol19/p1469-lee.pdf) · [arXiv](https://arxiv.org/abs/2603.09927) · [Code](https://github.com/LeeBohyun/ZLeanStore)
 
 
 ## Implemented Features Including Previous Works
@@ -191,13 +191,23 @@ Scripts for measuring SSD read performance, inferring GC unit size, and validati
 
 ## Citation
 
-Paper is currently under submission. Citation will be updated upon publication.
-
 ```bibtex
-@article{lee2025howtowrite,
-  title  = {How to Write to SSDs},
-  author = {Lee, Bohyun and Ziegler, Tobias and Leis, Viktor},
-  year   = {2025},
-  note   = {Under submission}
+@article{lee2026howtowrite,
+  title   = {How to Write to SSDs},
+  author  = {Lee, Bohyun and Ziegler, Tobias and Leis, Viktor},
+  journal = {Proceedings of the VLDB Endowment},
+  volume  = {19},
+  year    = {2026},
+  pages   = {1469},
+  url     = {https://www.vldb.org/pvldb/vol19/p1469-lee.pdf}
+}
+
+@misc{lee2026howtowrite_arxiv,
+  title         = {How to Write to SSDs},
+  author        = {Lee, Bohyun and Ziegler, Tobias and Leis, Viktor},
+  year          = {2026},
+  eprint        = {2603.09927},
+  archivePrefix = {arXiv},
+  primaryClass  = {cs.DB}
 }
 ```
