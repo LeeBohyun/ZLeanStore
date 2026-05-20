@@ -614,8 +614,13 @@ void Checkpointer::UpdateShardCheckpointGSN(u32 shard_idx, logid_t gsn) {
 void Checkpointer::UpdateCheckpointOffsetUntilShard(u32 shard_idx) {
   logid_t min_cp_gsn = shard_checkpointed_gsn_[shard_idx];
 
-  Ensure(LogManager::checkpoint_gsn.load() <= min_cp_gsn);
-  LogManager::checkpoint_gsn.store(min_cp_gsn);
+  // Monotonically advance the global checkpoint GSN: multiple checkpointer
+  // threads may publish in any order, so only move it forward.
+  logid_t prev = LogManager::checkpoint_gsn.load(std::memory_order_acquire);
+  while (prev < min_cp_gsn &&
+         !LogManager::checkpoint_gsn.compare_exchange_weak(
+             prev, min_cp_gsn, std::memory_order_acq_rel)) {
+  }
   group_committer_->UpdateCheckpointOffsetUntilCurGSN(
       shard_idx, LogManager::checkpoint_gsn.load());
 }
