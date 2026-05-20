@@ -112,15 +112,15 @@ void LeanStore::Shutdown() {
     group_committer.join();
   }
 
-  if (FLAGS_checkpointer_cnt) {
-    if (checkpointer.joinable()) {
-      checkpointer.join();
+  for (auto &t : checkpointer) {
+    if (t.joinable()) {
+      t.join();
     }
   }
 
-  if (FLAGS_garbage_collector_cnt) {
-    if (garbage_collector.joinable()) {
-      garbage_collector.join();
+  for (auto &t : garbage_collector) {
+    if (t.joinable()) {
+      t.join();
     }
   }
 
@@ -213,7 +213,6 @@ void LeanStore::StartGroupCommitThread() {
     gct->StartExecution();
     fprintf(stderr, "Halt LeanStore's GroupCommit thread\n");
   });
-  group_committer.detach();
 }
 
 // -------------------------------------------------------------------------------------
@@ -221,8 +220,9 @@ void LeanStore::StartCheckpointThread() {
   wid_t min_cp_id = FLAGS_worker_count;
   wid_t max_cp_id = FLAGS_worker_count + FLAGS_checkpointer_cnt;
 
+  checkpointer.reserve(FLAGS_checkpointer_cnt);
   for (wid_t t_id = min_cp_id; t_id < max_cp_id; t_id++) {
-    checkpointer = std::thread([&, t_id, min_cp_id]() {
+    checkpointer.emplace_back([&, t_id, min_cp_id]() {
       worker_thread_id = t_id;
       u32 cp_idx = worker_thread_id - min_cp_id;
       pthread_setname_np(pthread_self(), "checkpointer");
@@ -248,7 +248,6 @@ void LeanStore::StartCheckpointThread() {
       }
       fprintf(stderr, "Halt LeanStore's Checkpoint thread\n");
     });
-    checkpointer.detach();
   }
 }
 
@@ -257,8 +256,9 @@ void LeanStore::StartGarbageCollectorThread() {
   wid_t max_gc_thread_id = FLAGS_worker_count + FLAGS_checkpointer_cnt +
                            FLAGS_garbage_collector_cnt; // )
 
+  garbage_collector.reserve(FLAGS_garbage_collector_cnt);
   for (wid_t t_id = min_gc_thread_id; t_id < max_gc_thread_id; t_id++) {
-    std::thread garbage_collector([this, t_id, min_gc_thread_id]() {
+    garbage_collector.emplace_back([this, t_id, min_gc_thread_id]() {
       worker_thread_id = t_id;
 
       pthread_setname_np(pthread_self(), "garbage_collector");
@@ -282,7 +282,6 @@ void LeanStore::StartGarbageCollectorThread() {
       }
       fprintf(stderr, "Halt LeanStore's Garbage Collector thread\n");
     });
-    garbage_collector.detach();
   }
 }
 

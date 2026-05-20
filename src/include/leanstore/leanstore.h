@@ -22,6 +22,7 @@
 #include <thread>
 #include <typeindex>
 #include <typeinfo>
+#include <vector>
 
 namespace leanstore {
 
@@ -53,11 +54,11 @@ public:
   WorkerPool worker_pool;
   // thead id: [FLAGS_worker_count ~
   // FLAGS_worker_count+FLAGS_checkpointer_count)
-  std::thread checkpointer;
+  std::vector<std::thread> checkpointer;
   u32 shard_cnt;
   // thead id: [FLAGS_worker_count+FLAGS_checkpointer_count ~
   // FLAGS_worker_count+FLAGS_checkpointer_count+FLAGS_garbage_collector_count)
-  std::thread garbage_collector;
+  std::vector<std::thread> garbage_collector;
   // thead id: FLAGS_worker_count+FLAGS_checkpointer_count ~
   // FLAGS_worker_count+FLAGS_checkpointer_count+FLAGS_garbage_collector_count
   std::thread group_committer;

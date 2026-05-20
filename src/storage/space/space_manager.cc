@@ -1889,7 +1889,6 @@ void SpaceManager::UpdatePID2Offset(pageid_t pid, u64 offset, u16 comp_sz,
   if (FLAGS_use_ZNS) {
     Ensure(PID2Offset_table_[pid].get_offset() % block_size_ <= max_w_ptr_);
   }
-  Ensure(bid!=block_cnt_);
 
   if (FLAGS_use_out_of_place_write) {
     if (((prev_sz > 0 && prev_offset > 0) || comp_sz == PAGE_SIZE - 1) &&

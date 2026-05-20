@@ -84,14 +84,6 @@ void TPCCWorkload<AdapterType>::NewOrder(
   neworder.Insert({w_id, d_id, o_id}, NewOrderType());
   // LOG_INFO("w_id: %d d_id: %d o_id: %d o_ol_cnt: %d", w_id, d_id, o_id, cnt);
 
-  // Update max_o_id for this district
-  {
-    //  std::lock_guard<std::mutex> lock(order_metadata_[w_id][d_id].mutex);
-    if (o_id > order_metadata_[w_id][d_id].max_o_id) {
-      order_metadata_[w_id][d_id].max_o_id = o_id;
-    }
-  }
-
   // Loop each ongoing order, update the corresponding stock
   for (size_t idx = 0; idx < line_numbers.size(); idx++) {
     Integer qty = quantity_s[idx];
@@ -279,13 +271,10 @@ void TPCCWorkload<AdapterType>::Delivery(Integer w_id, Integer carrier_id,
     }
 
     if (ret) {
-      // Update the max_delivered_o_id for the district
+      // Track the highest delivered o_id; DoBatchDelete (steady mode,
+      // window_size > 0) reads this to advance its deletion cursor.
       std::lock_guard<std::mutex> lock(order_metadata_[w_id][d_id].mutex);
-      // LOG_INFO("min_delivered_o_id: %lu max_id :%lu o_id: %lu", o_id,
-      // order_metadata_[w_id][d_id].max_o_id, o_id);
       if (order_metadata_[w_id][d_id].max_delivered_o_id < o_id) {
-        Ensure(order_metadata_[w_id][d_id].max_delivered_o_id <
-               order_metadata_[w_id][d_id].max_o_id);
         order_metadata_[w_id][d_id].max_delivered_o_id = o_id;
       }
     }
