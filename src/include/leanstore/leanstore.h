@@ -34,6 +34,11 @@ class LeanStore {
 public:
   // Database is z (Must be on TOP)
   std::atomic<bool> is_running = true;
+  // Dedicated flag for the group-commit thread so it can keep draining the
+  // WAL after worker / checkpointer / GC threads have been told to stop
+  // (those callers may have in-flight CommitTransaction() calls that need
+  // group-commit to still be alive).
+  std::atomic<bool> gct_keep_running = true;
   std::atomic<bool> is_loading = false;
 
   // Buffer Manager, Log Manager, Transaction Manager, Group-Commit executor,

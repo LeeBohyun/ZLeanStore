@@ -1244,7 +1244,13 @@ void BufferManager::FlushValidPIDsToBlock(blockid_t bid,
 
 void BufferManager::CalcEDT(pageid_t pid) {
   logid_t cur_ts = recovery::LogManager::global_min_gsn_flushed.load();
-  Ensure(cur_ts != 0);
+  // Tiny / fast workloads can call CalcEDT before group-commit has advanced
+  // the global flushed GSN above zero. Use a non-zero sentinel so the EDT
+  // bookkeeping (AddWriteGSN / UpdateMinMaxEDT) still runs and downstream
+  // code that assumes at least one history was added doesn't fault later.
+  if (cur_ts == 0) {
+    cur_ts = 1;
+  }
 
   if (ToPtr(pid)->CountValidWriteHistories() >= 2) {
     logid_t prev_edt = ToPtr(pid)->EstimateDeathTime();

@@ -210,14 +210,22 @@ void GroupCommitExecutor::StartExecution() {
   while (keep_running_->load()) {
     try {
       ExecuteOneRound();
+    } catch (const std::exception &e) {
+      // Steady-state exceptions are real bugs (e.g. PhaseOne Ensure
+      // failures): surface them so workers don't silently lose their drain
+      // thread. The shutdown-time silent-return is preserved below.
+      if (keep_running_->load()) {
+        LOG_ERROR("GroupCommitExecutor died in steady state: %s", e.what());
+        fprintf(stderr, "FATAL: GroupCommitExecutor died: %s\n", e.what());
+        throw;
+      }
+      return;
     } catch (...) {
-      /**
-       * @brief The Group-commit thread is detached,
-       *  which means LeanStore may be stopped & deallocated while the Group
-       * commit is still running. Therefore, the group commit may cause SEGFAULT
-       * while LeanStore is deallocating, and this try-catch block is to silent
-       * that run-time problem
-       */
+      if (keep_running_->load()) {
+        LOG_ERROR("GroupCommitExecutor died in steady state (unknown exception)");
+        fprintf(stderr, "FATAL: GroupCommitExecutor died (unknown exception)\n");
+        throw;
+      }
       return;
     }
   }

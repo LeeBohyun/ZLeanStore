@@ -96,32 +96,9 @@ void LibaioInterface::IssueWriteRequest(u64 offset, u32 write_sz, void *buffer,
                                         bool is_synchronous) {
   auto sqe = io_uring_get_sqe(&write_ring_);
   if (sqe == nullptr) {
-    // The SQ ring is full. This can happen even when our local
-    // write_submit_cnt is 0 — e.g. on a regular-file fd with O_DIRECT where
-    // a previous UringSubmitWrite() flagged the SQEs as submitted but the
-    // kernel side hasn't fully reaped them yet, or where the queueing
-    // semantics differ from raw block devices.
-    //
-    // The original retry path called UringSubmit(write_submit_cnt, ring),
-    // which short-circuits to a no-op when write_submit_cnt==0 and then
-    // tripped Ensure(sqe != nullptr) on the next get_sqe.
-    //
-    // Force a flush + wait for at least one completion so that a slot is
-    // definitely freed before retrying.
-    io_uring_submit(&write_ring_);
-    io_uring_cqe *cqe = nullptr;
-    if (io_uring_wait_cqe(&write_ring_, &cqe) == 0 && cqe != nullptr) {
-      if (cqe->res < 0) {
-        LOG_ERROR("IO request failed with error: %d wid: %u", cqe->res,
-                  worker_thread_id);
-      }
-      io_uring_cqe_seen(&write_ring_, cqe);
-    }
+    UringSubmit(write_submit_cnt, &write_ring_);
     sqe = io_uring_get_sqe(&write_ring_);
     Ensure(sqe != nullptr);
-    // write_submit_cnt is now inaccurate (we just reaped a CQE that may or
-    // may not have been "ours"). Reset to 0; any remaining in-flight will
-    // be drained on the next batched submit / on UringSubmitWrite.
     write_submit_cnt = 0;
   }
   io_uring_prep_write(sqe, blockfd_, buffer, write_sz, offset);
@@ -152,18 +129,7 @@ void LibaioInterface::IssueReadRequest(u64 offset, u16 read_sz, void *buffer,
   }
   auto sqe = io_uring_get_sqe(&read_ring_);
   if (sqe == nullptr) {
-    // Same defense as IssueWriteRequest: force a flush + reap one CQE so a
-    // slot is freed, instead of relying on read_submit_cnt accurately
-    // tracking in-flight work.
-    io_uring_submit(&read_ring_);
-    io_uring_cqe *cqe = nullptr;
-    if (io_uring_wait_cqe(&read_ring_, &cqe) == 0 && cqe != nullptr) {
-      if (cqe->res < 0) {
-        LOG_ERROR("IO request failed with error: %d wid: %u", cqe->res,
-                  worker_thread_id);
-      }
-      io_uring_cqe_seen(&read_ring_, cqe);
-    }
+    UringSubmit(read_submit_cnt, &read_ring_);
     sqe = io_uring_get_sqe(&read_ring_);
     Ensure(sqe != nullptr);
     read_submit_cnt = 0;

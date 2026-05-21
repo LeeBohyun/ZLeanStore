@@ -54,8 +54,11 @@ LeanStore::LeanStore()
   all_buffer_pools.push_back(buffer_pool.get());
 
   // Group-commit initialization
+  // Pass gct_keep_running (separate from is_running) so we can keep
+  // group-commit alive while checkpointer/GC drain their in-flight
+  // transactions during shutdown.
   gct = make_unique<recovery::GroupCommitExecutor>(
-      buffer_pool.get(), log_manager.get(), is_running, shard_cnt,
+      buffer_pool.get(), log_manager.get(), gct_keep_running, shard_cnt,
       device->walfd_, device->wal_start_byte_offset_,
       device->wal_end_byte_offset_, device->sector_size_);
   StartGroupCommitThread(); // Ensure group commit thread starts
@@ -106,12 +109,11 @@ void LeanStore::Shutdown() {
     ioctl(buffer_pool->exmapfd_, EXMAP_IOCTL_ACTION, &params);
   }
 #endif
-  /** It's possible that these two special threads are already completed before
-   * calling join */
-  if (group_committer.joinable()) {
-    group_committer.join();
-  }
 
+  // Drain checkpointer and GC FIRST: their in-flight CommitTransaction()
+  // calls wait on the group-committer to flush WAL. If we stopped the
+  // group-committer at the same time, those commits would block forever
+  // (the original cause of the post-"Profiling threads halted" hang).
   for (auto &t : checkpointer) {
     if (t.joinable()) {
       t.join();
@@ -122,6 +124,13 @@ void LeanStore::Shutdown() {
     if (t.joinable()) {
       t.join();
     }
+  }
+
+  // Now safe to stop the group-committer: nobody is still queuing work
+  // through it.
+  gct_keep_running.store(false);
+  if (group_committer.joinable()) {
+    group_committer.join();
   }
 
   if (stat_collector.joinable())
@@ -228,7 +237,7 @@ void LeanStore::StartCheckpointThread() {
       pthread_setname_np(pthread_self(), "checkpointer");
 
       while (is_running) {
-        for (u32 shard_idx = cp_idx; shard_idx < shard_cnt;
+        for (u32 shard_idx = cp_idx; shard_idx < shard_cnt && is_running;
              shard_idx += FLAGS_checkpointer_cnt) {
 
           transaction_manager->StartTransaction(
