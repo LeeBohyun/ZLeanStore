@@ -6,7 +6,7 @@ ZLeanStore is an out-of-place write version of [LeanStore](https://db.in.tum.de/
 > **How to Write to SSDs**
 > Bohyun Lee, Tobias Ziegler, and Viktor Leis.
 > *Proceedings of the VLDB Endowment (PVLDB)*, Vol. 19, 2026, p. 1469.
-> [VLDB PDF](https://www.vldb.org/pvldb/vol19/p1469-lee.pdf) · [extended version](https://arxiv.org/abs/2603.09927) · [Code](https://github.com/LeeBohyun/ZLeanStore)
+> [VLDB PDF](https://www.vldb.org/pvldb/vol19/p1469-lee.pdf) · [extended version](https://arxiv.org/abs/2603.09927) · [Code](https://github.com/LeeBohyun/ZLeanStore) · [Slides](https://github.com/LeeBohyun/ZLeanStore/blob/main/docs/howtowritetossds_12min.pdf)   
 
 
 ## Implemented Features Including Previous Works
