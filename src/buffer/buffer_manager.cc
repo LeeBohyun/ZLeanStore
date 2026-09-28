@@ -1015,6 +1015,12 @@ void BufferManager::WritePagesOutOfPlace(bool evict) {
     blockid_t bid = io_interface_[worker_thread_id].SelectBlockIDToWrite(
         idx, min_edt.load(), max_edt.load());
 
+    // SelectBlockIDToWrite returns the block_cnt_ sentinel when this
+    // group's write buffer is empty — nothing to flush for this group
+    if (bid == sm_->block_cnt_) {
+      continue;
+    }
+
     // check if bid requires gc
     if (sm_->BlockNeedsGC(bid)) {
       blockid_t wbid = GCValidPIDs(bid, idx);
@@ -1345,7 +1351,13 @@ std::vector<pageid_t> BufferManager::GCReadValidPIDs(blockid_t bid) {
 
   std::vector<pageid_t> read_pids_from_disk = GCReadValidPIDsInBlockOnDisk(bid);
 
-  sm_->UpdateBlockMetadataAfterReadGC(bid);
+  // The read above may stop early (pool nearly full / batch caps). Only
+  // complete the GC read phase once no valid page remains on disk in this
+  // block; otherwise the block would be erased and rewritten while live
+  // mappings still point into it, destroying their data.
+  if (GCValidPIDCntInBlockOnDisk(bid) == 0) {
+    sm_->UpdateBlockMetadataAfterReadGC(bid);
+  }
 
   read_pids_from_disk.clear();
 

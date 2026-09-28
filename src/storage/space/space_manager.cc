@@ -449,9 +449,9 @@ bool SpaceManager::RemoveBlockIDFromActiveBlockList(blockid_t bid) {
       }
     }
 
-    if ((GetBlockWriteOffset(cur_bid) == max_w_ptr_ &&
-         sspace_->block_metadata[cur_bid].state == State::FULL) ||
-        cur_bid == block_cnt_) {
+    if (cur_bid == block_cnt_ ||
+        (GetBlockWriteOffset(cur_bid) == max_w_ptr_ &&
+         sspace_->block_metadata[cur_bid].state == State::FULL)) {
       full_cnt++;
     }
 
@@ -1343,8 +1343,14 @@ void SpaceManager::EraseBlock(blockid_t bid, logid_t gsn) {
       if (page_offset != 0 &&
           PID2Offset_table_[pid].get_offset() == page_offset &&
           !PIDIsDeallocated(pid)) {
-        // valid PIDs are not fully read
-        // UnreachableCode();
+        // erasing a block that still holds a valid page loses its data
+        static std::atomic<u32> lossy_erase_warn_cnt{0};
+        if (lossy_erase_warn_cnt.fetch_add(1) < 20) {
+          fprintf(stderr,
+                  "WARNING: EraseBlock(%lu) destroys valid pid %lu at offset "
+                  "%lu\n",
+                  bid, pid, page_offset);
+        }
       }
     }
     ResetOffset2PIDs(bid, p, pcnt);
@@ -1701,7 +1707,10 @@ u64 SpaceManager::GetBlockWriteOffset(blockid_t bid) {
 }
 
 bool SpaceManager::BlockNeedsGC(blockid_t bid) {
-  // Access cur_size from block_metadata structure
+  // bid can be the block_cnt_ sentinel (no block selected)
+  if (bid >= block_cnt_) {
+    return false;
+  }
   return (sspace_->block_metadata[bid].state == State::IN_USE &&
           sspace_->block_metadata[bid].cur_size == max_w_ptr_);
 }
