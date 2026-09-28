@@ -27,12 +27,25 @@ public:
   void UringSubmitWrite();
 
 private:
+  struct PendingIO {
+    u64 offset;
+    u64 size;
+    void *buffer;
+  };
+
+  // Reap `cnt` completions and verify each transferred its full size;
+  // failed or short transfers are redone synchronously
+  void ReapAndVerify(io_uring *ring, size_t cnt, std::vector<PendingIO> &pending,
+                     bool is_write);
+
   int blockfd_;
   /* io_uring properties */
   struct io_uring read_ring_;
   struct io_uring write_ring_;
   u32 write_submit_cnt;
   u32 read_submit_cnt;
+  std::vector<PendingIO> pending_writes_;
+  std::vector<PendingIO> pending_reads_;
 };
 
 } // namespace leanstore::storage::space::backend

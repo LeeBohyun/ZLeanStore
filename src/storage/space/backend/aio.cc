@@ -49,36 +49,52 @@ LibaioInterface::LibaioInterface(int blockfd) : blockfd_(blockfd) {
   }
 }
 
+void LibaioInterface::ReapAndVerify(io_uring *ring, size_t cnt,
+                                    std::vector<PendingIO> &pending,
+                                    bool is_write) {
+  for (size_t i = 0; i < cnt; ++i) {
+    io_uring_cqe *cqe;
+    int wait_ret = io_uring_wait_cqe(ring, &cqe);
+    Ensure(wait_ret == 0);
+
+    u64 idx = io_uring_cqe_get_data64(cqe);
+    Ensure(idx < pending.size());
+    auto &req = pending[idx];
+
+    // A failed or short transfer must not be dropped: the mapping is
+    // published after this call, so silent loss leaves stale file bytes
+    // that are later read back as valid page content
+    if (cqe->res != static_cast<int>(req.size)) {
+      LOG_ERROR("io_uring %s failed: offset=%lu size=%lu res=%d wid: %u — "
+                "redoing synchronously",
+                is_write ? "write" : "read", req.offset, req.size, cqe->res,
+                worker_thread_id);
+      ssize_t r = is_write
+                      ? pwrite(blockfd_, req.buffer, req.size, req.offset)
+                      : pread(blockfd_, req.buffer, req.size, req.offset);
+      Ensure(r == static_cast<ssize_t>(req.size));
+    }
+    io_uring_cqe_seen(ring, cqe);
+  }
+  pending.clear();
+}
+
 void LibaioInterface::UringSubmit(size_t submit_cnt, io_uring *ring) {
   if (submit_cnt > 0) {
     // Submit the requests and wait for at least `submit_cnt` completions
     auto ret = io_uring_submit_and_wait(ring, submit_cnt);
-    Ensure(ret >= 0); // Ensure the submission was successful
-
-    // Process the completion queue for the submitted requests
-    for (size_t i = 0; i < submit_cnt; ++i) {
-      io_uring_cqe *cqe;
-      int wait_ret =
-          io_uring_wait_cqe(ring, &cqe); // Wait for a completion entry
-      Ensure(wait_ret == 0); // Ensure a CQE was retrieved successfully
-
-      // Check the result of the completed request
-      if (cqe->res < 0) {
-        LOG_ERROR("IO request failed with error: %d wid: %u ", cqe->res,
-                  worker_thread_id);
-      }
-
-      // Mark the completion entry as seen
-      io_uring_cqe_seen(ring, cqe);
-    }
+    Ensure(ret == static_cast<int>(submit_cnt));
+    ReapAndVerify(ring, submit_cnt,
+                  ring == &write_ring_ ? pending_writes_ : pending_reads_,
+                  ring == &write_ring_);
   }
 }
 
 void LibaioInterface::UringSubmitRead() {
   if (read_submit_cnt > 0) {
     auto ret = io_uring_submit_and_wait(&read_ring_, read_submit_cnt);
-    io_uring_cq_advance(&read_ring_, read_submit_cnt);
     Ensure(ret == static_cast<int>(read_submit_cnt));
+    ReapAndVerify(&read_ring_, read_submit_cnt, pending_reads_, false);
     read_submit_cnt = 0;
   }
 }
@@ -86,8 +102,8 @@ void LibaioInterface::UringSubmitRead() {
 void LibaioInterface::UringSubmitWrite() {
   if (write_submit_cnt > 0) {
     auto ret = io_uring_submit_and_wait(&write_ring_, write_submit_cnt);
-    io_uring_cq_advance(&write_ring_, write_submit_cnt);
     Ensure(ret == static_cast<int>(write_submit_cnt));
+    ReapAndVerify(&write_ring_, write_submit_cnt, pending_writes_, true);
     write_submit_cnt = 0;
   }
 }
@@ -102,6 +118,8 @@ void LibaioInterface::IssueWriteRequest(u64 offset, u32 write_sz, void *buffer,
     write_submit_cnt = 0;
   }
   io_uring_prep_write(sqe, blockfd_, buffer, write_sz, offset);
+  io_uring_sqe_set_data64(sqe, pending_writes_.size());
+  pending_writes_.push_back({offset, write_sz, buffer});
   write_submit_cnt++;
 
   if (is_synchronous || write_submit_cnt >= FLAGS_bm_aio_qd) {
@@ -136,6 +154,8 @@ void LibaioInterface::IssueReadRequest(u64 offset, u16 read_sz, void *buffer,
   }
 
   io_uring_prep_read(sqe, blockfd_, buffer, read_sz, offset);
+  io_uring_sqe_set_data64(sqe, pending_reads_.size());
+  pending_reads_.push_back({offset, read_sz, buffer});
   read_submit_cnt++;
 
   if (is_synchronous) {
