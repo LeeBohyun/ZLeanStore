@@ -162,6 +162,11 @@ void SpaceManager::Construction() {
   }
 
   if (FLAGS_use_out_of_place_write) {
+    if (!FLAGS_use_binpacking) {
+      fprintf(stderr, "out-of-place write requires --use_binpacking=true; the "
+                      "non-binpacking write path is not supported\n");
+    }
+    Ensure(FLAGS_use_binpacking);
     page_cnt_per_block_ = block_size_ / PAGE_SIZE;
     min_comp_size_ = MIN_COMP_SIZE;
   }
