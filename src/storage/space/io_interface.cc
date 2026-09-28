@@ -125,6 +125,7 @@ void IOInterface::ReadPageOutOfPlace(pageid_t pid) {
     }
   } else {
     HandleUncompressedRead(pid, pid_offset, comp_sz, true);
+
   }
   UpdateReadCachedPageInfo(pid, comp_sz);
 }
@@ -883,22 +884,25 @@ void IOInterface::FlushWriteBufferPerGroup(u32 group_idx, blockid_t cur_bid,
     logid_t maxedt = wbuffer->zpage_info[0].death_time;
     sm_->SetMinMaxEDTPerBlock(bid, minedt, maxedt);
   }
+  // Compute the write base ONCE: the disk write below and the mapping
+  // publish in UpdateSpaceMetadata must use the same base. Re-reading
+  // cur_size after the write races with concurrent cur_size updates and
+  // publishes mappings at offsets that never received the data.
+  u64 disk_base = sm_->GetBlockWriteOffset(bid) + sm_->GetBlockOffset(bid);
+
   if (FLAGS_batch_writes) {
     io_backend_.WritePagesOutOfPlace(
-        sm_->GetBlockWriteOffset(bid) + sm_->GetBlockOffset(bid),
-        GetWbufferWriteSize(wbuffer), reinterpret_cast<void *>(wbuffer->buffer),
-        false, false);
+        disk_base, GetWbufferWriteSize(wbuffer),
+        reinterpret_cast<void *>(wbuffer->buffer), false, false);
   } else {
     for (u32 idx = 0; idx < wbuffer->cur_size / PAGE_SIZE; idx++) {
       io_backend_.WritePagesOutOfPlace(
-          sm_->GetBlockWriteOffset(bid) + sm_->GetBlockOffset(bid) +
-              idx * PAGE_SIZE,
-          PAGE_SIZE,
+          disk_base + idx * PAGE_SIZE, PAGE_SIZE,
           reinterpret_cast<void *>(wbuffer->buffer + idx * PAGE_SIZE), false,
           false);
     }
   }
-  UpdateSpaceMetadata(wbuffer, bid);
+  UpdateSpaceMetadata(wbuffer, bid, disk_base);
 }
 
 bool IOInterface::BlockNeedsGC(blockid_t bid) {
@@ -923,6 +927,8 @@ void IOInterface::FlushGCWriteBuffer(blockid_t bid, bool sync, logid_t min_edt,
     sm_->EraseBlock(bid, recovery::LogManager::global_min_gsn_flushed.load());
     Ensure(sspace_->block_metadata[bid].cur_size == 0);
   }
+
+  u64 gc_disk_base = sm_->GetBlockWriteOffset(bid) + sm_->GetBlockOffset(bid);
 
   if (wbuffer_gc_.zpage_cnt > 0) {
     logid_t avg_edt = 0;
@@ -963,25 +969,26 @@ void IOInterface::FlushGCWriteBuffer(blockid_t bid, bool sync, logid_t min_edt,
       sm_->SetMinMaxEDTPerBlock(bid, minedt, maxedt);
     }
 
+    // same-base rule as FlushWriteBufferPerGroup: the disk write and the
+    // mapping publish must share one snapshot of the write pointer
+    gc_disk_base = sm_->GetBlockWriteOffset(bid) + sm_->GetBlockOffset(bid);
+
     if (FLAGS_batch_writes) {
       io_backend_.WritePagesOutOfPlace(
-          sm_->GetBlockWriteOffset(bid) + sm_->GetBlockOffset(bid),
-          GetWbufferWriteSize(wbuffer),
+          gc_disk_base, GetWbufferWriteSize(wbuffer),
           reinterpret_cast<void *>(wbuffer->buffer), true, true);
     } else {
       // if((!FLAGS_use_binpacking && FLAGS_use_compression)){
       for (u32 idx = 0; idx < wbuffer->cur_size / PAGE_SIZE; idx++) {
         io_backend_.WritePagesOutOfPlace(
-            sm_->GetBlockWriteOffset(bid) + sm_->GetBlockOffset(bid) +
-                idx * PAGE_SIZE,
-            PAGE_SIZE,
+            gc_disk_base + idx * PAGE_SIZE, PAGE_SIZE,
             reinterpret_cast<void *>(wbuffer->buffer + idx * PAGE_SIZE), sync,
             true);
       }
     }
   }
   /* update data placement info */
-  UpdateSpaceMetadata(&binpacked_gc_, bid);
+  UpdateSpaceMetadata(&binpacked_gc_, bid, gc_disk_base);
   ResetGCWriteBuffer(0);
 }
 
@@ -1329,18 +1336,32 @@ u32 IOInterface::GetWbufferWriteCnt(ZipPage *wbuffer) {
   return wbuffer->zpage_cnt;
 }
 
-void IOInterface::UpdateSpaceMetadata(ZipPage *wbuffer, blockid_t bid) {
-  Ensure(GetWbufferWriteSize(wbuffer) + sm_->GetBlockWriteOffset(bid) <=
+void IOInterface::UpdateSpaceMetadata(ZipPage *wbuffer, blockid_t bid,
+                                      u64 disk_base) {
+  Ensure(GetWbufferWriteSize(wbuffer) + (disk_base - sm_->GetBlockOffset(bid)) <=
          sm_->max_w_ptr_);
+
+  // diagnose concurrent write-pointer movement (mapping stays correct
+  // because it is derived from disk_base, the same base the write used)
+  u64 republished_base = static_cast<u64>(sm_->GetBlockOffset(bid)) +
+                         static_cast<u64>(sm_->GetBlockWriteOffset(bid));
+  if (republished_base != disk_base) {
+    static std::atomic<u32> base_moved_note_cnt{0};
+    if (base_moved_note_cnt.fetch_add(1) < 20) {
+      fprintf(stderr,
+              "NOTE: block %lu write pointer moved during flush "
+              "(write_base=%lu republished_base=%lu)\n",
+              bid, disk_base, republished_base);
+    }
+  }
+
 
   for (u32 idx = 0; idx < wbuffer->zpage_cnt; idx++) {
     pageid_t pid = wbuffer->zpage_info[idx].pid;
     u64 offset = wbuffer->zpage_info[idx].start_ptr;
     u16 comp_sz = wbuffer->zpage_info[idx].comp_sz;
 
-    u64 updated_offset = static_cast<u64>(sm_->GetBlockOffset(bid)) +
-                         static_cast<u64>(sm_->GetBlockWriteOffset(bid)) +
-                         offset;
+    u64 updated_offset = disk_base + offset;
 
     Ensure(comp_sz > 0);
 
@@ -1349,6 +1370,7 @@ void IOInterface::UpdateSpaceMetadata(ZipPage *wbuffer, blockid_t bid) {
     sm_->UpdatePID2Offset(pid, updated_offset, comp_sz, bid, copyback_write);
 
     sm_->UpdateOffset2PIDs(pid, bid, updated_offset);
+
   }
 
   if (wbuffer->zpage_cnt == 0) {

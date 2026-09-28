@@ -148,7 +148,7 @@ public:
   void ResetGCWriteBuffer(u32 cached_cnt);
   u64 GetWbufferWriteSize(ZipPage *wbuffer);
   u32 GetWbufferWriteCnt(ZipPage *wbuffer);
-  void UpdateSpaceMetadata(ZipPage *wbuffer, blockid_t bid);
+  void UpdateSpaceMetadata(ZipPage *wbuffer, blockid_t bid, u64 disk_base);
 
   std::vector<blockid_t> selected_bids_; // List of selected block IDs
 private:
