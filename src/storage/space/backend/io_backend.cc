@@ -96,7 +96,16 @@ void IOBackend::WriteWAL(u64 offset, u32 write_sz, void *buffer,
   }
 
   if (!FLAGS_use_ZNS && !FLAGS_use_FDP) {
-    // use io_uring
+    // When the WAL lives on a separate device/file, its offsets are relative
+    // to that device — writing them through the DB fd would overwrite the
+    // first max_wal_capacity_gb of DB data
+    int walfd = (sm_->device_ != nullptr) ? sm_->device_->walfd_ : blockfd_;
+    if (walfd != blockfd_) {
+      ssize_t r = pwrite(walfd, buffer, write_sz, offset);
+      Ensure(r == static_cast<ssize_t>(write_sz));
+      return;
+    }
+    // db and wal share the device: wal offsets point past the db area
     libaio_.IssueWriteRequest(offset, write_sz, buffer, synchronous);
     libaio_.UringSubmitWrite();
     return;
