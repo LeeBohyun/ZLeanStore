@@ -1333,7 +1333,7 @@ void SpaceManager::EraseBlock(blockid_t bid, logid_t gsn) {
   for (u32 p = 0; p < page_cnt_per_block_; p++) {
     u16 pcnt = sspace_->blocks[bid].pages[p].cnt;
     for (u16 pidx = 0; pidx < pcnt; pidx++) {
-      pageid_t pid = sspace_->blocks[bid].pages[p].pids[pidx];
+      pageid_t pid = sspace_->blocks[bid].pages[p].pids.at(pidx);
       u64 page_offset = bid * block_size_ + p * PAGE_SIZE;
       if (page_offset != 0 &&
           PID2Offset_table_[pid].get_offset() == page_offset &&
@@ -1341,8 +1341,8 @@ void SpaceManager::EraseBlock(blockid_t bid, logid_t gsn) {
         // valid PIDs are not fully read
         // UnreachableCode();
       }
-      ResetOffset2PIDs(bid, p, pidx);
     }
+    ResetOffset2PIDs(bid, p, pcnt);
   }
 
   if (gsn > 0) {
@@ -1904,14 +1904,15 @@ void SpaceManager::UpdateOffset2PIDs(pageid_t pid, blockid_t bid,
   u32 p = 0;
   p = (page_offset % block_size_) / PAGE_SIZE;
   Ensure(page_offset / block_size_ == bid);
-  Ensure(
-      sspace_->blocks[bid].pages[p].pids[sspace_->blocks[bid].pages[p].cnt] !=
-      max_mapped_pages_cnt_);
-  // Ensure(PID2Offset_table_[pid].get_comp_sz() > 0);
-  sspace_->blocks[bid].pages[p].pids[sspace_->blocks[bid].pages[p].cnt] = pid;
-  sspace_->blocks[bid].pages[p].cnt++;
 
-  Ensure(sspace_->blocks[bid].pages[p].cnt <= PAGE_SIZE / MIN_COMP_SIZE);
+  auto &page = sspace_->blocks[bid].pages[p];
+  // an uncompressed page occupies its physical page slot exclusively; only
+  // compressed pages can share one slot (up to PAGE_SIZE / MIN_COMP_SIZE)
+  const u16 max_pids_per_page =
+      FLAGS_use_compression ? PAGE_SIZE / MIN_COMP_SIZE : 1;
+  Ensure(page.cnt < max_pids_per_page);
+  page.pids.at(page.cnt) = pid;
+  page.cnt++;
 }
 
 void SpaceManager::ConvertOffset2PIDs(u64 page_offset) {
@@ -1974,10 +1975,10 @@ void SpaceManager::HotUringSubmit() {
 }
 
 void SpaceManager::ResetOffset2PIDs(blockid_t bid, u32 pn, u16 pcnt) {
-
-  // pageid_t pid = sspace_->blocks[bid].pages[pn].pids[pcnt];
-  sspace_->blocks[bid].pages[pn].pids[pcnt] = 0;
-  sspace_->blocks[bid].pages[pn].cnt--;
+  auto &page = sspace_->blocks[bid].pages[pn];
+  Ensure(pcnt <= page.pids.size());
+  std::fill(page.pids.begin(), page.pids.end(), 0);
+  page.cnt = 0;
 }
 
 // check whether page is still valid upon GC
